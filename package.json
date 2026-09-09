@@ -1,0 +1,35 @@
+{
+  "name": "@xeplr/rules",
+  "version": "1.0.0",
+  "description": "Conditional formatting, as a condition language. Renderer-agnostic: it answers whether a rule matches a value and how to format one. What to DO about a match belongs to whatever is drawing.",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "index.mjs",
+    "src/"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "conditional-formatting",
+    "rules",
+    "xeplr"
+  ],
+  "author": "xeplr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xeplr/xeplr-rules"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.js"
+    }
+  },
+  "module": "index.mjs"
+}
