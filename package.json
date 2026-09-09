@@ -20,7 +20,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Xeplr/xeplr-rules"
+    "url": "https://github.com/Xeplr/x-rules.git"
   },
   "publishConfig": {
     "access": "public"
