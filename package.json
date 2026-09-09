@@ -1,6 +1,6 @@
 {
   "name": "@xeplr/rules",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Conditional formatting, as a condition language. Renderer-agnostic: it answers whether a rule matches a value and how to format one. What to DO about a match belongs to whatever is drawing.",
   "main": "index.js",
   "files": [
