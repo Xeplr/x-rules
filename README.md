@@ -34,9 +34,12 @@ formatNumber(1234.5, { style: 'currency', currency: 'USD', decimals: 2 })   // �
 
 | export | signature | does |
 |---|---|---|
-| `OPERATORS` | `Array<{ key, label, numeric?, second?, noValue? }>` | The 12 operators, as data. |
+| `OPERATORS` | `Array<{ key, label, group, numeric?, date?, second?, noValue? }>` | The 17 operators, as data, each in a `group`: `number` (less than, at most, more than, at least, between), `text` (contains, does not contain, starts with, ends with), `date` (on, before, after, between dates; compared by day), `any` (is, is not, is blank, is not blank). The first twelve keep their original order. |
 | `operator` | `(key) → operator \| null` | The `OPERATORS` entry for a key, or `null`. |
-| `operatorsFor` | `(isNumeric) → operator[]` | All operators when `true`; only the non-`numeric` ones when `false`. Always a new array. |
+| `operatorGroups` | `(kind) → Array<{ key, label, operators }>` | EVERY operator, grouped, the column's own kind (`'number'`, `'text'`, `'date'`, or null) first. Nothing is left out: the kind is a guess, and a picker must still offer a text comparison on a number column. |
+| `defaultOperator` | `(kind) → key` | What a new rule starts with: `gt` for a number, `contains` for text, `dateAfter` for a date, `eq` when not known. |
+| `columnKind` | `(rows, key, sampleSize = 20) → 'number' \| 'date' \| 'text' \| null` | A column's kind, judged from its values (numeric strings count; ISO stamps and Dates are dates); null with nothing to judge on. |
+| `operatorsFor` | `(isNumeric) → operator[]` | All operators when `true`; only the non-`numeric` ones when `false`. Kept for callers that ask; a picker should use `operatorGroups`. Always a new array. |
 | `matches` | `(rule, actual) → boolean` | Whether `rule` matches the value `actual`. Never throws. |
 | `firstMatch` | `(rules, valueOf) → rule \| null` | The first rule in `rules` for which `matches(rule, valueOf(rule))` is true. |
 | `resolveThen` | `(rules, valueOf) → object \| null` | The first match's `then` (`{}` if it has none), or `null` if nothing matched. |

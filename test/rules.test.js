@@ -76,7 +76,7 @@ test('an operator nobody implements is not a match', function () {
 });
 
 test('the operators are data, so a picker can be built from them', function () {
-  assert.strictEqual(R.OPERATORS.length, 12);
+  assert.strictEqual(R.OPERATORS.length, 17);
   assert.ok(R.OPERATORS.every(function (o) { return o.key && o.label; }));
   assert.strictEqual(R.operator('lt').numeric, true);
   assert.strictEqual(R.operator('contains').numeric, undefined);
@@ -180,4 +180,47 @@ test('...and the caller decides where a field is READ from', function () {
     R.resolveThen(rules, function (rule) { return scope[rule.field]; }),
     { color: '#c00' }
   );
+});
+
+test('every operator, grouped by the kind of value it is about, the column\'s own first', function () {
+  var groups = R.operatorGroups('date');
+  assert.deepStrictEqual(groups.map(function (g) { return g.key; }), ['date', 'number', 'text', 'any']);
+  assert.deepStrictEqual(R.operatorGroups('number').map(function (g) { return g.key; }), ['number', 'text', 'date', 'any']);
+  assert.deepStrictEqual(R.operatorGroups(null).map(function (g) { return g.key; }), ['number', 'text', 'date', 'any']);
+  var all = [].concat.apply([], groups.map(function (g) { return g.operators; }));
+  assert.strictEqual(all.length, R.OPERATORS.length, 'nothing is left out, whatever the kind');
+  assert.ok(R.OPERATORS.every(function (o) { return o.group; }), 'every operator is in a group');
+  assert.strictEqual(R.OPERATORS[0].key, 'lt', 'the first one is still the first');
+});
+
+test('a new rule starts on its kind\'s usual comparison', function () {
+  assert.strictEqual(R.defaultOperator('number'), 'gt');
+  assert.strictEqual(R.defaultOperator('text'), 'contains');
+  assert.strictEqual(R.defaultOperator('date'), 'dateAfter');
+  assert.strictEqual(R.defaultOperator(null), 'eq');
+});
+
+test('what kind a column is, from its values', function () {
+  assert.strictEqual(R.columnKind([{ a: 1 }, { a: '2.5' }, { a: null }], 'a'), 'number');
+  assert.strictEqual(R.columnKind([{ a: '2025-04-01' }, { a: '2025-03-01T00:00:00Z' }], 'a'), 'date');
+  assert.strictEqual(R.columnKind([{ a: new Date(2025, 3, 1) }], 'a'), 'date');
+  assert.strictEqual(R.columnKind([{ a: 'North' }, { a: 3 }], 'a'), 'text');
+  assert.strictEqual(R.columnKind([], 'a'), null);
+  assert.strictEqual(R.columnKind([{ a: '' }], 'a'), null);
+});
+
+test('does not contain', function () {
+  assert.strictEqual(R.matches({ op: 'notContains', value: 'ref' }, 'Refunded'), false);
+  assert.strictEqual(R.matches({ op: 'notContains', value: 'ref' }, 'Paid'), true);
+});
+
+test('dates, compared by day', function () {
+  assert.strictEqual(R.matches({ op: 'dateOn', value: '2025-04-01' }, '2025-04-01 18:30:00'), true);
+  assert.strictEqual(R.matches({ op: 'dateBefore', value: '2025-04-01' }, '2025-03-31'), true);
+  assert.strictEqual(R.matches({ op: 'dateBefore', value: '2025-04-01' }, '2025-04-01'), false);
+  assert.strictEqual(R.matches({ op: 'dateAfter', value: '2025-04-01' }, new Date(2025, 3, 2)), true);
+  assert.strictEqual(R.matches({ op: 'dateBetween', value: '2025-04-30', value2: '2025-03-01' }, '2025-04-30'), true, 'given backwards, both ends in');
+  assert.strictEqual(R.matches({ op: 'dateBetween', value: '2025-03-01', value2: '2025-04-30' }, '2025-05-01'), false);
+  assert.strictEqual(R.matches({ op: 'dateAfter', value: 'soon' }, '2025-04-01'), false, 'not a day: no match');
+  assert.strictEqual(R.matches({ op: 'dateOn', value: '2025-04-01' }, 'North'), false);
 });

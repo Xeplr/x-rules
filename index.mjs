@@ -12,6 +12,10 @@
 import R from './src/rules.js'
 
 export const OPERATORS = R.OPERATORS
+export const OPERATOR_GROUPS = R.OPERATOR_GROUPS
+export const operatorGroups = R.operatorGroups
+export const defaultOperator = R.defaultOperator
+export const columnKind = R.columnKind
 export const operator = R.operator
 export const operatorsFor = R.operatorsFor
 export const matches = R.matches

@@ -20,6 +20,11 @@ module.exports = {
   OPERATORS: R.OPERATORS,
   operator: R.operator,
   operatorsFor: R.operatorsFor,
+  // Every operator by the kind of value it is about, the column's own first.
+  OPERATOR_GROUPS: R.OPERATOR_GROUPS,
+  operatorGroups: R.operatorGroups,
+  defaultOperator: R.defaultOperator,
+  columnKind: R.columnKind,
 
   // The question itself. Pure, total, dependency-free.
   matches: R.matches,

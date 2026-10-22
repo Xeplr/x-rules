@@ -35,19 +35,30 @@
 // means the comparison only answers over numbers — offering "is more than"
 // on a column of names is a control that can never be true.
 
+//
+// Each belongs to a GROUP — the kind of value it is about. A picker shows
+// every group, the column's own kind first (operatorGroups): which one a
+// column is is a guess from its values, and a guess must never hide the
+// comparison somebody actually wants.
 var OPERATORS = [
-  { key: 'lt', label: 'is less than', numeric: true },
-  { key: 'lte', label: 'is at most', numeric: true },
-  { key: 'gt', label: 'is more than', numeric: true },
-  { key: 'gte', label: 'is at least', numeric: true },
-  { key: 'between', label: 'is between', numeric: true, second: true },
-  { key: 'eq', label: 'is' },
-  { key: 'neq', label: 'is not' },
-  { key: 'contains', label: 'contains' },
-  { key: 'startsWith', label: 'starts with' },
-  { key: 'endsWith', label: 'ends with' },
-  { key: 'isEmpty', label: 'is blank', noValue: true },
-  { key: 'notEmpty', label: 'is not blank', noValue: true }
+  { key: 'lt', label: 'is less than', numeric: true, group: 'number' },
+  { key: 'lte', label: 'is at most', numeric: true, group: 'number' },
+  { key: 'gt', label: 'is more than', numeric: true, group: 'number' },
+  { key: 'gte', label: 'is at least', numeric: true, group: 'number' },
+  { key: 'between', label: 'is between', numeric: true, second: true, group: 'number' },
+  { key: 'eq', label: 'is', group: 'any' },
+  { key: 'neq', label: 'is not', group: 'any' },
+  { key: 'contains', label: 'contains', group: 'text' },
+  { key: 'startsWith', label: 'starts with', group: 'text' },
+  { key: 'endsWith', label: 'ends with', group: 'text' },
+  { key: 'isEmpty', label: 'is blank', noValue: true, group: 'any' },
+  { key: 'notEmpty', label: 'is not blank', noValue: true, group: 'any' },
+  // Added after the first twelve, so OPERATORS[0] and the old order stand.
+  { key: 'notContains', label: 'does not contain', group: 'text' },
+  { key: 'dateOn', label: 'is on', date: true, group: 'date' },
+  { key: 'dateBefore', label: 'is before', date: true, group: 'date' },
+  { key: 'dateAfter', label: 'is after', date: true, group: 'date' },
+  { key: 'dateBetween', label: 'is between dates', date: true, second: true, group: 'date' }
 ];
 
 var BY_KEY = {};
@@ -55,9 +66,43 @@ OPERATORS.forEach(function (o) { BY_KEY[o.key] = o; });
 
 function operator(key) { return BY_KEY[key] || null; }
 
-/** The operators worth offering for a column — numeric ones only where they can answer. */
+/**
+ * The operators for a column, by the old yes/no "is it numeric" question —
+ * kept for callers that ask it. New code: operatorGroups, which hides nothing.
+ */
 function operatorsFor(isNumeric) {
   return isNumeric ? OPERATORS.slice() : OPERATORS.filter(function (o) { return !o.numeric; });
+}
+
+/** The groups, as a picker heads them. */
+var OPERATOR_GROUPS = [
+  { key: 'number', label: 'Number' },
+  { key: 'text', label: 'Text' },
+  { key: 'date', label: 'Date' },
+  { key: 'any', label: 'Any value' }
+];
+
+/**
+ * EVERY operator, grouped by the kind of value it is about, the column's own
+ * kind first (`kind`: 'number' | 'text' | 'date', or null when not known).
+ * Nothing is left out: a number stored as text, or a code that looks like a
+ * number, still gets the comparison somebody wants.
+ */
+function operatorGroups(kind) {
+  var order = OPERATOR_GROUPS.slice().sort(function (a, b) {
+    return (a.key === kind ? -1 : 0) - (b.key === kind ? -1 : 0);
+  });
+  return order.map(function (g) {
+    return { key: g.key, label: g.label, operators: OPERATORS.filter(function (o) { return o.group === g.key; }) };
+  });
+}
+
+/** The comparison a new rule starts with, for a column of this kind. */
+function defaultOperator(kind) {
+  if (kind === 'number') return 'gt';
+  if (kind === 'date') return 'dateAfter';
+  if (kind === 'text') return 'contains';
+  return 'eq';
 }
 
 // ── comparing ────────────────────────────────────────────────────────────
@@ -79,6 +124,21 @@ function asText(v) {
 
 function isBlank(v) {
   return v === null || v === undefined || String(v).trim() === '';
+}
+
+// A value as a DAY, 'YYYY-MM-DD', or null. A Date reads as its own calendar
+// day; text that begins with a date (an ISO stamp, '2025-04-01 10:00') reads
+// as that day. Days compare as text, in order.
+var DAY = /^(\d{4})-(\d{2})-(\d{2})/;
+function asDay(v) {
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    var m = v.getMonth() + 1, d = v.getDate();
+    return v.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (d < 10 ? '0' : '') + d;
+  }
+  if (typeof v !== 'string') return null;
+  var hit = DAY.exec(v.trim());
+  return hit ? hit[1] + '-' + hit[2] + '-' + hit[3] : null;
 }
 
 /**
@@ -113,6 +173,19 @@ function matches(rule, actual) {
     case 'eq': return numeric ? a === b : asText(actual) === asText(rule.value);
     case 'neq': return numeric ? a !== b : asText(actual) !== asText(rule.value);
     case 'contains': return asText(actual).indexOf(asText(rule.value)) >= 0;
+    case 'notContains': return asText(actual).indexOf(asText(rule.value)) < 0;
+    case 'dateOn': case 'dateBefore': case 'dateAfter': case 'dateBetween': {
+      var day = asDay(actual);
+      var from = asDay(rule.value);
+      if (!day || !from) return false;
+      if (op === 'dateOn') return day === from;
+      if (op === 'dateBefore') return day < from;
+      if (op === 'dateAfter') return day > from;
+      var to = asDay(rule.value2);
+      if (!to) return false;
+      var lo = from < to ? from : to, hi = from < to ? to : from;
+      return day >= lo && day <= hi;
+    }
     case 'startsWith': return asText(actual).indexOf(asText(rule.value)) === 0;
     case 'endsWith': {
       var t = asText(actual);
@@ -208,8 +281,32 @@ function columnIsNumeric(rows, key, sampleSize) {
   return sawValue || !sample.length;
 }
 
+/**
+ * What kind of value a column holds, judged from its values: 'number' when
+ * every one is a number (numeric strings count), 'date' when every one is a
+ * day or an ISO stamp, 'text' otherwise — or null with nothing to judge on.
+ * A guess for which group a picker leads with, never a limit on it.
+ */
+function columnKind(rows, key, sampleSize) {
+  var sample = (rows || []).slice(0, sampleSize || 20);
+  var number = true, date = true, saw = false;
+  for (var i = 0; i < sample.length; i++) {
+    var v = sample[i] ? sample[i][key] : undefined;
+    if (isBlank(v)) continue;
+    saw = true;
+    if (asNumber(v) === null) number = false;
+    if (!asDay(v)) date = false;
+  }
+  if (!saw) return null;
+  return number ? 'number' : date ? 'date' : 'text';
+}
+
 module.exports = {
   OPERATORS: OPERATORS,
+  OPERATOR_GROUPS: OPERATOR_GROUPS,
+  operatorGroups: operatorGroups,
+  defaultOperator: defaultOperator,
+  columnKind: columnKind,
   operator: operator,
   operatorsFor: operatorsFor,
   matches: matches,
