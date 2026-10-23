@@ -19,6 +19,7 @@ export const columnKind = R.columnKind
 export const operator = R.operator
 export const operatorsFor = R.operatorsFor
 export const matches = R.matches
+export const resolveRules = R.resolveRules
 export const firstMatch = R.firstMatch
 export const resolveThen = R.resolveThen
 export const formatNumber = R.formatNumber

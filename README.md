@@ -79,8 +79,10 @@ formatNumber(1234.5, { style: 'currency', currency: 'USD', decimals: 2 })   // �
 | `endsWith` | ends with | | case-insensitive suffix |
 | `isEmpty` | is blank | `noValue` | `null`, `undefined`, or a string that is empty after trimming |
 | `notEmpty` | is not blank | `noValue` | not blank |
+| `isHighest` | is the highest | `numeric`, `noValue`, `needsRows` | `actual` equals the highest number among the rows, as worked out by `resolveRules` |
+| `isLowest` | is the lowest | `numeric`, `noValue`, `needsRows` | … the lowest number among the rows |
 
-Flags, for building a rule editor: `numeric` — only answers over numbers; `second` — needs `value2`; `noValue` — needs no `value`.
+Flags, for building a rule editor: `numeric` — only answers over numbers; `second` — needs `value2`; `noValue` — needs no `value`. `needsRows` — about ALL the rows, not one value: call `resolveRules(rules, rows, valueOf)` once per set of rows before matching ("the highest point green"). It returns the rules with `resolved` set (the highest or lowest number, or `null` when there is none); every other rule is returned unchanged. Without it, `isHighest`/`isLowest` match nothing, never a guess.
 
 ### How values are compared
 

@@ -76,7 +76,7 @@ test('an operator nobody implements is not a match', function () {
 });
 
 test('the operators are data, so a picker can be built from them', function () {
-  assert.strictEqual(R.OPERATORS.length, 17);
+  assert.strictEqual(R.OPERATORS.length, 19);
   assert.ok(R.OPERATORS.every(function (o) { return o.key && o.label; }));
   assert.strictEqual(R.operator('lt').numeric, true);
   assert.strictEqual(R.operator('contains').numeric, undefined);
@@ -223,4 +223,31 @@ test('dates, compared by day', function () {
   assert.strictEqual(R.matches({ op: 'dateBetween', value: '2025-03-01', value2: '2025-04-30' }, '2025-05-01'), false);
   assert.strictEqual(R.matches({ op: 'dateAfter', value: 'soon' }, '2025-04-01'), false, 'not a day: no match');
   assert.strictEqual(R.matches({ op: 'dateOn', value: '2025-04-01' }, 'North'), false);
+});
+
+test('is the highest / is the lowest: about all the rows, resolved first', function () {
+  var rows = [{ v: 10 }, { v: '42' }, { v: 7 }, { v: null }, { v: 'n/a' }];
+  var rules = [{ op: 'isHighest', field: 'v' }, { op: 'isLowest', field: 'v' }, { op: 'gt', field: 'v', value: 5 }];
+  var ready = R.resolveRules(rules, rows, function (rule, row) { return row[rule.field]; });
+  assert.strictEqual(ready[0].resolved, 42, 'the highest of the numbers, text numbers included');
+  assert.strictEqual(ready[1].resolved, 7);
+  assert.strictEqual(ready[2], rules[2], 'a rule about one value is returned as it was');
+  assert.ok(R.matches(ready[0], 42) && R.matches(ready[0], '42.0'));
+  assert.ok(!R.matches(ready[0], 10));
+  assert.ok(R.matches(ready[1], 7) && !R.matches(ready[1], 42));
+  // Unresolved, or over rows with no numbers: they match nothing.
+  assert.ok(!R.matches(rules[0], 42), 'not resolved: no match, never a guess');
+  var none = R.resolveRules([rules[0]], [{ v: 'x' }], function (rule, row) { return row[rule.field]; });
+  assert.strictEqual(none[0].resolved, null);
+  assert.ok(!R.matches(none[0], 'x'));
+  assert.deepStrictEqual(R.resolveRules(null, rows, function () {}), []);
+  // They are in the Number group, need no value, and say they need the rows.
+  var o = R.operator('isHighest');
+  assert.ok(o.noValue && o.needsRows && o.group === 'number');
+  assert.ok(R.operatorGroups('number')[0].operators.some(function (x) { return x.key === 'isLowest'; }));
+});
+
+test('the ESM face exports resolveRules too', async function () {
+  var M = await import('../index.mjs');
+  assert.strictEqual(typeof M.resolveRules, 'function');
 });

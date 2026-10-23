@@ -28,6 +28,8 @@ module.exports = {
 
   // The question itself. Pure, total, dependency-free.
   matches: R.matches,
+  // Operators about all the rows ("is the highest") get their answer here.
+  resolveRules: R.resolveRules,
   firstMatch: R.firstMatch,
   resolveThen: R.resolveThen,
 

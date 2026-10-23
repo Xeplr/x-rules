@@ -58,7 +58,12 @@ var OPERATORS = [
   { key: 'dateOn', label: 'is on', date: true, group: 'date' },
   { key: 'dateBefore', label: 'is before', date: true, group: 'date' },
   { key: 'dateAfter', label: 'is after', date: true, group: 'date' },
-  { key: 'dateBetween', label: 'is between dates', date: true, second: true, group: 'date' }
+  { key: 'dateBetween', label: 'is between dates', date: true, second: true, group: 'date' },
+  // About ALL the rows, not one: "the highest point green". One value alone
+  // cannot say whether it is the highest, so these need resolveRules over the
+  // rows first; matched without that, they match nothing.
+  { key: 'isHighest', label: 'is the highest', numeric: true, noValue: true, needsRows: true, group: 'number' },
+  { key: 'isLowest', label: 'is the lowest', numeric: true, noValue: true, needsRows: true, group: 'number' }
 ];
 
 var BY_KEY = {};
@@ -186,6 +191,11 @@ function matches(rule, actual) {
       var lo = from < to ? from : to, hi = from < to ? to : from;
       return day >= lo && day <= hi;
     }
+    // `resolved` is set by resolveRules: the highest (or lowest) of the rows.
+    case 'isHighest': case 'isLowest': {
+      var r = asNumber(rule.resolved);
+      return a !== null && r !== null && a === r;
+    }
     case 'startsWith': return asText(actual).indexOf(asText(rule.value)) === 0;
     case 'endsWith': {
       var t = asText(actual);
@@ -196,6 +206,30 @@ function matches(rule, actual) {
     // one would style rows for a condition that was never evaluated.
     default: return false;
   }
+}
+
+/**
+ * Rules made ready for these rows: an operator about ALL the rows ("is the
+ * highest") gets the answer it needs, as `resolved`. Every other rule is
+ * returned as it is. Call once per set of rows, before matching.
+ *
+ * @param {object[]} rules
+ * @param {object[]} rows
+ * @param {(rule, row) => any} valueOf  the value a rule tests, in a row
+ * @returns {object[]} new rule objects where something was resolved
+ */
+function resolveRules(rules, rows, valueOf) {
+  return (rules || []).map(function (rule) {
+    var o = rule && BY_KEY[rule.op];
+    if (!o || !o.needsRows) return rule;
+    var best = null;
+    (rows || []).forEach(function (row) {
+      var n = asNumber(valueOf(rule, row));
+      if (n === null) return;
+      if (best === null || (rule.op === 'isHighest' ? n > best : n < best)) best = n;
+    });
+    return Object.assign({}, rule, { resolved: best });
+  });
 }
 
 /** The first rule that matches, or null. The convention every caller follows. */
@@ -302,6 +336,7 @@ function columnKind(rows, key, sampleSize) {
 }
 
 module.exports = {
+  resolveRules: resolveRules,
   OPERATORS: OPERATORS,
   OPERATOR_GROUPS: OPERATOR_GROUPS,
   operatorGroups: operatorGroups,
